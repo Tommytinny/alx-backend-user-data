@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
+"""data filtered logger modules
+"""
+
+from typing import List
 import re
 import logging
+import os
+import mysql.connector
+from mysql.connector import MySQLConnection
 
-PII_FIELDS = ("ssn", "password", "ip")
-def filter_datum(fields: list, redaction: str, message: str, separator: str)-> str:
+
+PII_FIELDS = ("name", "email", "phone", "ssn", "password")
+
+
+def filter_datum(fields: List[str], redaction: str,
+                 message: str, separator: str) -> str:
     """filter values in incoming log records
     """
-    pattern = rf"({'|'.join(fields)})=.*?(?={separator}|$)"
-    redaction = rf"\1={redaction}"
-    redacted_message = re.sub(pattern, redaction, message)
-    return redacted_message
-
-
-def get_logger()-> str:
-    """logger function
-    """
-    custom_logger = logging.getLogger("user_data")
-    custom_logger.setLevel(logging.INFO)
-    custom_logger.propagate = False
-    handler = logging.StreamHandler()
-    handler.setFormatter(RedactingFormatter)
-    custom_logger.addHandler(handler)
-
+    for f in fields:
+        message = re.sub(f'{f}=.*?{separator}',
+                         f'{f}={redaction}{separator}', message)
+    return message
 
 
 class RedactingFormatter(logging.Formatter):
@@ -32,21 +31,61 @@ class RedactingFormatter(logging.Formatter):
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
     SEPARATOR = ";"
 
-    def __init__(self, fields=None):
+    def __init__(self, fields: List[str]):
         super(RedactingFormatter, self).__init__(self.FORMAT)
         self.fields = fields
-        
 
     def format(self, record: logging.LogRecord) -> str:
-        logging.basicConfig(format=self.FORMAT, level=logging.INFO)
-        logger = logging.getLogger(record.name)
-        msg = filter_datum(self.fields, self.REDACTION, record.getMessage(), self.SEPARATOR)
-        return logger.info(msg)
+        record.msg = filter_datum(self.fields, self.REDACTION,
+                                  record.getMessage(), self.SEPARATOR)
+        return super(RedactingFormatter, self).format(record)
 
 
+def get_logger() -> logging.Logger:
+    """logger function
+    """
+    custom_logger = logging.getLogger("user_data")
+    custom_logger.setLevel(logging.INFO)
+    custom_logger.propagate = False
+    handler = logging.StreamHandler()
+    handler.setFormatter(RedactingFormatter(list(PII_FIELDS)))
+    custom_logger.addHandler(handler)
+    return custom_logger
 
 
-message = "name=Bob;email=bob@dylan.com;ssn=000-123-0000;password=bobby2019;"
-log_record = logging.LogRecord("my_logger", logging.INFO, None, None, message, None, None)
-formatter = RedactingFormatter(fields=("email", "ssn", "password"))
-print(formatter.format(log_record))
+def get_db() -> MySQLConnection:
+    """returns a connector to the database
+    """
+    PERSONAL_DATA_DB_USERNAME = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
+    PERSONAL_DATA_DB_PASSWORD = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
+    PERSONAL_DATA_DB_HOST = os.getenv("PERSONAL_DATA_DB_HOST", "localhost")
+    PERSONAL_DATA_DB_NAME = os.getenv("PERSONAL_DATA_DB_NAME")
+
+    connection = mysql.connector.connect(
+            host=PERSONAL_DATA_DB_HOST,
+            user=PERSONAL_DATA_DB_USERNAME,
+            password=PERSONAL_DATA_DB_PASSWORD,
+            database=PERSONAL_DATA_DB_NAME
+            )
+    return connection
+
+
+def main() -> None:
+    """main function
+    """
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users;")
+    logger = get_logger()
+    field_names = [i[0] for i in cursor.description]
+
+    for row in cursor:
+        str_row = ''.join(f'{f}={str(r)}; ' for r, f in zip(row, field_names))
+        logger.info(str_row.strip())
+
+    cursor.close()
+    db.close()
+
+
+if __name__ == "__main__":
+    main()
