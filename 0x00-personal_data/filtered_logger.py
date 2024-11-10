@@ -15,7 +15,7 @@ PII_FIELDS = ("name", "email", "phone", "ssn", "password")
 
 def filter_datum(fields: List[str], redaction: str,
                  message: str, separator: str) -> str:
-    """filter values in incoming log records
+    """ filter values in incoming log records
     """
     for f in fields:
         message = re.sub(f'{f}=.*?{separator}',
@@ -25,8 +25,7 @@ def filter_datum(fields: List[str], redaction: str,
 
 class RedactingFormatter(logging.Formatter):
     """ Redacting Formatter class
-        """
-
+    """
     REDACTION = "***"
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
     SEPARATOR = ";"
@@ -42,7 +41,7 @@ class RedactingFormatter(logging.Formatter):
 
 
 def get_logger() -> logging.Logger:
-    """logger function
+    """ return logger object
     """
     custom_logger = logging.getLogger("user_data")
     custom_logger.setLevel(logging.INFO)
@@ -54,7 +53,7 @@ def get_logger() -> logging.Logger:
 
 
 def get_db() -> MySQLConnection:
-    """returns a connector to the database
+    """ returns a connector to the database
     """
     PERSONAL_DATA_DB_USERNAME = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
     PERSONAL_DATA_DB_PASSWORD = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
@@ -71,7 +70,7 @@ def get_db() -> MySQLConnection:
 
 
 def main() -> None:
-    """main function
+    """ main function with the implementation
     """
     db = get_db()
     cursor = db.cursor()
