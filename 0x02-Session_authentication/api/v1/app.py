@@ -23,7 +23,7 @@ if auth:
         auth = BasicAuth()
     elif auth == 'session_auth':
         auth = SessionAuth()
-    else:
+    elif auth == 'auth':
         auth = Auth()
 
 
