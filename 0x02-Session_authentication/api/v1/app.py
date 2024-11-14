@@ -34,13 +34,13 @@ def request_handler() -> None:
         - None if auth is None
     """
     if auth is None:
-        pass
+        return
     else:
         if not auth.require_auth(request.path,
                                  ['/api/v1/status/', '/api/v1/unauthorized/',
                                   '/api/v1/forbidden/',
                                   '/api/v1/auth_session/login/']):
-            pass
+            return
         else:
             if not isinstance(auth, SessionAuth):
                 if auth.authorization_header(request) is None:
@@ -50,7 +50,7 @@ def request_handler() -> None:
             else:
                 if auth.authorization_header(
                    request) and auth.session_cookie(request):
-                    return None, abort(401)
+                    abort(401)
                 request.current_user = auth.current_user(request)
 
 
